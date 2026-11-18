@@ -78,3 +78,4 @@ def test_health_fail_cuando_bd_no_responde(client, monkeypatch, metrics):
     assert resp.status_code == 503
     assert resp.json()["database"] == "FAIL"
     assert metrics == ["DBErrors"]
+def test_que_falla(): assert False
