@@ -5,7 +5,7 @@ terraform {
   # CAMBIA "organization" por el nombre de tu organizacion en HCP.
   # El workspace debe estar en Execution Mode = Local (ver README).
   cloud {
-    organization = "CAMBIA-ESTO"
+    organization = "FernandoDELREAL"
 
     workspaces {
       name = "to-do-list-api"
