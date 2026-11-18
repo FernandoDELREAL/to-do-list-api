@@ -1,0 +1,78 @@
+name: Deploy (Continuous Deployment)
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag del release a desplegar (ej. v1.2.0)"
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+      AWS_DEFAULT_REGION: us-east-1
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    steps:
+      - name: URL del artefacto
+        run: |
+          echo "ASSET_URL=${{ github.server_url }}/${{ github.repository }}/releases/download/$TAG/to-do-list-api-$TAG.zip" >> "$GITHUB_ENV"
+
+      - name: Buscar IP de la EC2
+        run: |
+          IP=$(aws ec2 describe-instances \
+            --filters "Name=tag:Name,Values=todo-list-ec2" "Name=instance-state-name,Values=running" \
+            --query "Reservations[0].Instances[0].PublicIpAddress" --output text)
+          if [ -z "$IP" ] || [ "$IP" = "None" ]; then
+            echo "::error::No hay una EC2 corriendo. Corre primero el workflow de Provision."
+            exit 1
+          fi
+          echo "EC2_IP=$IP" >> "$GITHUB_ENV"
+          echo "EC2: $IP"
+
+      - name: Configurar llave SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+
+      - name: Descargar release en la EC2 y reiniciar
+        run: |
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_ed25519 ec2-user@"$EC2_IP" sudo bash -s <<EOF
+          set -euo pipefail
+          curl -fsSL -o /tmp/release.zip "$ASSET_URL"
+          rm -rf /opt/todo.new && mkdir -p /opt/todo.new
+          unzip -q /tmp/release.zip -d /opt/todo.new
+          /opt/venv/bin/pip install -q -r /opt/todo.new/src/requirements.txt
+          rm -rf /opt/todo.old
+          if [ -d /opt/todo ]; then mv /opt/todo /opt/todo.old; fi
+          mv /opt/todo.new /opt/todo
+          sed -i "s/^APP_VERSION=.*/APP_VERSION=$TAG/" /etc/todo.env
+          systemctl restart todo
+          EOF
+
+      - name: Confirmar version con GET /version
+        run: |
+          for i in $(seq 1 12); do
+            V=$(curl -s --max-time 5 "http://$EC2_IP:8000/version" | python3 -c 'import sys,json; print(json.load(sys.stdin)["version"])' 2>/dev/null || true)
+            echo "Intento $i: version=$V"
+            if [ "$V" = "$TAG" ]; then
+              echo "### Deploy OK: $TAG corriendo en http://$EC2_IP:8000" >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::La version desplegada no coincide con $TAG"
+          exit 1

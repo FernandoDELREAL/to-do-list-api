@@ -1,0 +1,40 @@
+[
+  {
+    "AlarmName": "todo-ec2-cpu-alta",
+    "AlarmDescription": "Metrica nativa de AWS. CPU promedio de la EC2 arriba de 80% durante 15 minutos seguidos (3 periodos de 5 min).",
+    "Namespace": "AWS/EC2",
+    "MetricName": "CPUUtilization",
+    "Dimensions": { "InstanceId": "__INSTANCE_ID__" },
+    "Statistic": "Average",
+    "Period": 300,
+    "EvaluationPeriods": 3,
+    "DatapointsToAlarm": 3,
+    "Threshold": 80,
+    "ComparisonOperator": "GreaterThanThreshold",
+    "TreatMissingData": "missing"
+  },
+  {
+    "AlarmName": "todo-errores-rds",
+    "AlarmDescription": "Metrica propia. Al menos 1 error al leer/escribir en RDS en el ultimo minuto.",
+    "Namespace": "TodoListApp",
+    "MetricName": "DBErrors",
+    "Statistic": "Sum",
+    "Period": 60,
+    "EvaluationPeriods": 1,
+    "Threshold": 1,
+    "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+    "TreatMissingData": "notBreaching"
+  },
+  {
+    "AlarmName": "todo-pico-tareas-creadas",
+    "AlarmDescription": "Metrica propia. Mas de 30 tareas creadas en 5 minutos: posible bot, script en loop o abuso del endpoint POST /tasks.",
+    "Namespace": "TodoListApp",
+    "MetricName": "TasksCreated",
+    "Statistic": "Sum",
+    "Period": 300,
+    "EvaluationPeriods": 1,
+    "Threshold": 30,
+    "ComparisonOperator": "GreaterThanThreshold",
+    "TreatMissingData": "notBreaching"
+  }
+]

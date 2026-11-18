@@ -1,0 +1,53 @@
+{
+  "widgets": [
+    {
+      "type": "text",
+      "x": 0, "y": 0, "width": 24, "height": 2,
+      "properties": {
+        "markdown": "# to-do-list-api\nCPU de la EC2 (nativa de AWS), errores de RDS y tareas creadas (instrumentadas con boto3). Las lineas rojas son el umbral de cada alarma."
+      }
+    },
+    {
+      "type": "metric",
+      "x": 0, "y": 2, "width": 8, "height": 7,
+      "properties": {
+        "title": "CPU de la EC2 (%)",
+        "region": "__REGION__",
+        "view": "timeSeries",
+        "stat": "Average",
+        "period": 300,
+        "metrics": [["AWS/EC2", "CPUUtilization", "InstanceId", "__INSTANCE_ID__"]],
+        "yAxis": { "left": { "min": 0, "max": 100 } },
+        "annotations": { "horizontal": [{ "label": "Alarma 80%", "value": 80, "color": "#d62728" }] }
+      }
+    },
+    {
+      "type": "metric",
+      "x": 8, "y": 2, "width": 8, "height": 7,
+      "properties": {
+        "title": "Errores de RDS (por minuto)",
+        "region": "__REGION__",
+        "view": "timeSeries",
+        "stat": "Sum",
+        "period": 60,
+        "metrics": [["TodoListApp", "DBErrors"]],
+        "yAxis": { "left": { "min": 0 } },
+        "annotations": { "horizontal": [{ "label": "Alarma >= 1", "value": 1, "color": "#d62728" }] }
+      }
+    },
+    {
+      "type": "metric",
+      "x": 16, "y": 2, "width": 8, "height": 7,
+      "properties": {
+        "title": "Tareas creadas (cada 5 min)",
+        "region": "__REGION__",
+        "view": "timeSeries",
+        "stat": "Sum",
+        "period": 300,
+        "metrics": [["TodoListApp", "TasksCreated"]],
+        "yAxis": { "left": { "min": 0 } },
+        "annotations": { "horizontal": [{ "label": "Alarma > 30", "value": 30, "color": "#d62728" }] }
+      }
+    }
+  ]
+}

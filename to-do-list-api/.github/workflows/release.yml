@@ -1,0 +1,30 @@
+name: Release (Continuous Delivery)
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Empaquetar repo en zip
+        run: git archive --format=zip -o "to-do-list-api-${{ github.ref_name }}.zip" HEAD
+
+      # Se usa un PAT y no GITHUB_TOKEN porque los eventos creados con
+      # GITHUB_TOKEN NO disparan otros workflows (deploy.yml no correria).
+      - name: Crear release en GitHub
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$TAG" "to-do-list-api-$TAG.zip" \
+            --repo "${{ github.repository }}" \
+            --title "$TAG" \
+            --generate-notes

@@ -1,0 +1,21 @@
+# Terraform (el state vive en HCP, nunca en el repo)
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+crash.log
+.terraform.lock.hcl
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+# Llaves y credenciales
+*.pem
+*.key
+id_ed25519*
+creds.txt
+.env

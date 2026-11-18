@@ -1,0 +1,49 @@
+name: Health check
+
+on:
+  schedule:
+    - cron: "*/5 * * * *" # cada 5 minutos (GitHub puede retrasarlo unos minutos)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+      AWS_DEFAULT_REGION: us-east-1
+    steps:
+      - name: Buscar IP de la EC2
+        id: ip
+        run: |
+          IP=$(aws ec2 describe-instances \
+            --filters "Name=tag:Name,Values=todo-list-ec2" "Name=instance-state-name,Values=running" \
+            --query "Reservations[0].Instances[0].PublicIpAddress" --output text 2>/dev/null || true)
+          if [ -z "$IP" ] || [ "$IP" = "None" ]; then
+            echo "::warning::No hay EC2 corriendo o las credenciales del lab expiraron. Se omite el check."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ip=$IP" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: GET /health
+        if: steps.ip.outputs.skip != 'true'
+        run: |
+          CODE=$(curl -s -o body.json -w "%{http_code}" --max-time 10 "http://${{ steps.ip.outputs.ip }}:8000/health" || echo 000)
+          echo "HTTP $CODE"
+          cat body.json || true
+          {
+            echo "### /health -> HTTP $CODE"
+            echo '```json'
+            cat body.json 2>/dev/null || echo "sin respuesta"
+            echo
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$CODE" != "200" ]; then
+            echo "::error::La app o la base de datos no estan sanas"
+            exit 1
+          fi
